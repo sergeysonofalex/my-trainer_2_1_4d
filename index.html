@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🤖 Принимаем решение: ЕСЛИ–ТО–ИНАЧЕ | Урок 5</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;width:100%}
+  body{
+    font-family:'Trebuchet MS','Segoe UI',Verdana,sans-serif;
+    background:radial-gradient(circle at 15% 10%,#3b1d6b 0%,transparent 45%),
+               radial-gradient(circle at 85% 85%,#0e4d64 0%,transparent 45%),
+               linear-gradient(135deg,#141a45 0%,#1d1146 50%,#0b2440 100%);
+    color:#fff;overflow:hidden;user-select:none;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;pointer-events:none;
+    background:
+      radial-gradient(circle at 10% 20%,rgba(255,107,107,.16),transparent 25%),
+      radial-gradient(circle at 90% 15%,rgba(79,172,254,.16),transparent 25%),
+      radial-gradient(circle at 50% 100%,rgba(165,94,234,.18),transparent 35%);
+  }
+
+  #app{position:relative;height:100vh;display:flex;flex-direction:column;z-index:1}
+
+  /* ===== HUD ===== */
+  #hud{
+    display:flex;gap:8px;align-items:center;padding:7px 12px 5px;
+    flex-wrap:nowrap;overflow:hidden;
+  }
+  .hud-item{
+    background:rgba(255,255,255,.11);
+    border:2px solid rgba(255,255,255,.16);
+    border-radius:14px;
+    padding:5px 13px;
+    font-size:clamp(14px,1.45vw,21px);
+    font-weight:bold;
+    display:flex;align-items:center;gap:6px;
+    white-space:nowrap;
+    backdrop-filter:blur(6px);
+    transition:.2s;
+  }
+  .hud-item.pop{transform:scale(1.14);background:rgba(255,255,255,.25)}
+  #hudLives{letter-spacing:1px;flex-shrink:0}
+  #hudTask{margin-left:auto;background:linear-gradient(135deg,rgba(79,172,254,.35),rgba(165,94,234,.35))}
+  #hudTime.warn{color:#ffdf6b;border-color:#ffdf6b}
+  #hudTime.danger{color:#ff6b6b;border-color:#ff6b6b;animation:pulse .8s infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+
+  #barWrap{height:9px;margin:0 12px 4px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden}
+  #bar{height:100%;width:100%;border-radius:99px;
+    background:linear-gradient(90deg,#26de81,#4facfe);
+    transition:width .5s linear,background .4s;}
+
+  /* ===== STAGE ===== */
+  #stage{flex:1;display:flex;align-items:center;justify-content:center;padding:8px 14px 12px;overflow:auto;position:relative}
+  #card{
+    margin:auto;width:100%;max-width:1080px;
+    background:rgba(255,255,255,.075);
+    border:2px solid rgba(255,255,255,.14);
+    border-radius:26px;
+    padding:16px 26px 22px;
+    box-shadow:0 18px 50px rgba(0,0,0,.4);
+    backdrop-filter:blur(10px);
+    animation:cardIn .35s ease;
+  }
+  @keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(.98)}to{opacity:1;transform:none}}
+
+  #qType{
+    display:inline-block;font-size:clamp(12px,1.1vw,16px);font-weight:bold;
+    background:linear-gradient(135deg,#f7b731,#fa8231);
+    color:#2b1a00;padding:4px 14px;border-radius:99px;margin-bottom:10px;
+    letter-spacing:.5px;text-transform:uppercase;
+  }
+  #qText{
+    font-size:clamp(19px,2.1vw,28px);font-weight:bold;line-height:1.3;
+    margin-bottom:16px;text-shadow:0 2px 8px rgba(0,0,0,.35);
+  }
+
+  /* ===== CHOICE ===== */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .opt{
+    font-family:inherit;font-weight:bold;color:#fff;cursor:pointer;
+    font-size:clamp(16px,1.6vw,22px);
+    border:3px solid rgba(255,255,255,.22);
+    border-radius:18px;padding:14px 16px;text-align:left;
+    display:flex;align-items:center;gap:12px;
+    transition:transform .15s,box-shadow .15s,border-color .2s,filter .2s;
+    text-shadow:0 2px 6px rgba(0,0,0,.4);
+    box-shadow:0 6px 0 rgba(0,0,0,.28);
+  }
+  .opt:nth-child(1){background:linear-gradient(135deg,#5f27cd,#341f97)}
+  .opt:nth-child(2){background:linear-gradient(135deg,#0abde3,#006ba6)}
+  .opt:nth-child(3){background:linear-gradient(135deg,#ee5a24,#b71540)}
+  .opt:nth-child(4){background:linear-gradient(135deg,#10ac84,#006266)}
+  .opt:hover{transform:translateY(-3px);filter:brightness(1.15);box-shadow:0 9px 0 rgba(0,0,0,.28)}
+  .opt:active{transform:translateY(2px);box-shadow:0 3px 0 rgba(0,0,0,.28)}
+  .badge{
+    flex:0 0 auto;width:38px;height:38px;border-radius:12px;
+    background:rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;
+    font-size:20px;
+  }
+  .opt.disabled{pointer-events:none}
+  .opt.ok{border-color:#26de81;box-shadow:0 0 0 4px rgba(38,222,129,.4),0 6px 0 rgba(0,0,0,.28);filter:brightness(1.25)}
+  .opt.ok::after{content:'✅';margin-left:auto;font-size:24px}
+  .opt.bad{border-color:#ff4757;box-shadow:0 0 0 4px rgba(255,71,87,.4);animation:shake .4s}
+  .opt.bad::after{content:'❌';margin-left:auto;font-size:24px}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-9px)}75%{transform:translateX(9px)}}
+
+  /* ===== TRUE / FALSE ===== */
+  .tfWrap{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:6px 0}
+  .tfBtn{
+    font-family:inherit;font-weight:bold;cursor:pointer;color:#fff;
+    font-size:clamp(20px,2.3vw,30px);
+    border:3px solid rgba(255,255,255,.25);border-radius:22px;
+    padding:26px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;
+    transition:transform .15s,filter .2s,border-color .2s;
+    box-shadow:0 7px 0 rgba(0,0,0,.3);text-shadow:0 2px 6px rgba(0,0,0,.4);
+  }
+  .tfBtn span.ico{font-size:clamp(34px,4vw,54px)}
+  #tfYes{background:linear-gradient(135deg,#26de81,#0fb46b)}
+  #tfNo{background:linear-gradient(135deg,#ff6b6b,#c0392b)}
+  .tfBtn:hover{transform:translateY(-4px);filter:brightness(1.15)}
+  .tfBtn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.3)}
+  .tfBtn.disabled{pointer-events:none;opacity:.75}
+  .tfBtn.ok{border-color:#fff;box-shadow:0 0 0 5px rgba(255,255,255,.5),0 7px 0 rgba(0,0,0,.3)}
+  .tfBtn.bad{border-color:#ff4757;animation:shake .4s;opacity:.85}
+
+  /* ===== MATCHING ===== */
+  .matchWrap{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  .matchCol{display:flex;flex-direction:column;gap:10px}
+  .colTitle{font-size:clamp(13px,1.2vw,17px);opacity:.7;font-weight:bold;text-align:center;letter-spacing:.5px}
+  .mItem{
+    font-family:inherit;font-weight:bold;color:#fff;cursor:pointer;
+    font-size:clamp(15px,1.5vw,21px);
+    border:3px solid rgba(255,255,255,.2);border-radius:15px;
+    padding:12px 14px;transition:.18s;text-align:center;
+    background:linear-gradient(135deg,#3d5af1,#1b3bbb);
+    box-shadow:0 5px 0 rgba(0,0,0,.25);
+  }
+  .matchCol:last-child .mItem{background:linear-gradient(135deg,#8e44ad,#5f27cd)}
+  .mItem:hover{transform:translateY(-2px);filter:brightness(1.15)}
+  .mItem.sel{border-color:#ffd93d;box-shadow:0 0 0 4px rgba(255,217,61,.4),0 5px 0 rgba(0,0,0,.25);transform:scale(1.03)}
+  .mItem.done{background:linear-gradient(135deg,#26de81,#0fb46b)!important;border-color:#fff;opacity:.85;pointer-events:none}
+  .mItem.done::after{content:' ✓'}
+  .mItem.bad{border-color:#ff4757;animation:shake .4s;background:linear-gradient(135deg,#ff4757,#c0392b)!important}
+
+  /* ===== CATEGORY ===== */
+  .catWrap{display:flex;flex-direction:column;align-items:center;gap:16px;padding:4px 0}
+  .catProg{font-size:clamp(13px,1.2vw,17px);opacity:.7;font-weight:bold}
+  .catCard{
+    font-size:clamp(19px,2.1vw,28px);font-weight:bold;
+    background:linear-gradient(135deg,#4facfe,#00c6ff);
+    color:#03263a;border-radius:20px;padding:22px 34px;
+    border:3px solid rgba(255,255,255,.5);
+    box-shadow:0 10px 26px rgba(0,198,255,.35);
+    min-width:min(420px,80vw);text-align:center;
+  }
+  .catCard.pop{animation:popIn .3s ease}
+  @keyframes popIn{from{transform:scale(.85);opacity:.4}to{transform:scale(1);opacity:1}}
+  .catCard.bad{background:linear-gradient(135deg,#ff4757,#c0392b);color:#fff;animation:shake .4s}
+  .catBtns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+  .catBtn{
+    font-family:inherit;font-weight:bold;cursor:pointer;color:#fff;
+    font-size:clamp(15px,1.55vw,21px);
+    border:3px solid rgba(255,255,255,.25);border-radius:16px;
+    padding:14px 26px;transition:.18s;text-shadow:0 2px 5px rgba(0,0,0,.35);
+    box-shadow:0 6px 0 rgba(0,0,0,.28);
+  }
+  .catBtn:nth-child(1){background:linear-gradient(135deg,#a55eea,#6c2bd9)}
+  .catBtn:nth-child(2){background:linear-gradient(135deg,#fa8231,#d35400)}
+  .catBtn:nth-child(3){background:linear-gradient(135deg,#20bf6b,#0a8a4a)}
+  .catBtn:hover{transform:translateY(-3px);filter:brightness(1.16)}
+  .catBtn:active{transform:translateY(2px);box-shadow:0 3px 0 rgba(0,0,0,.28)}
+
+  /* ===== ORDER ===== */
+  .seqArea{
+    min-height:64px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+    background:rgba(38,222,129,.09);border:3px dashed rgba(38,222,129,.45);
+    border-radius:16px;padding:10px 12px;margin-bottom:14px;
+  }
+  .seqArea:empty::before{content:'⬇ Нажимай блоки в правильном порядке ⬇';opacity:.5;font-size:clamp(13px,1.2vw,17px)}
+  .poolArea{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .chip{
+    font-family:inherit;font-weight:bold;color:#fff;cursor:pointer;
+    font-size:clamp(14px,1.45vw,20px);
+    border:3px solid rgba(255,255,255,.22);border-radius:14px;
+    padding:11px 16px;transition:.18s;
+    background:linear-gradient(135deg,#5f27cd,#341f97);
+    box-shadow:0 5px 0 rgba(0,0,0,.26);text-shadow:0 2px 5px rgba(0,0,0,.35);
+  }
+  .chip:hover{transform:translateY(-2px);filter:brightness(1.15)}
+  .chip.done{opacity:.28;pointer-events:none;filter:grayscale(.5)}
+  .chip.placed{
+    background:linear-gradient(135deg,#26de81,#0fb46b);cursor:default;
+    box-shadow:0 4px 0 rgba(0,0,0,.25);animation:popIn .28s ease;
+  }
+  .chip.bad{background:linear-gradient(135deg,#ff4757,#c0392b);animation:shake .4s}
+
+  /* ===== FEEDBACK ===== */
+  #feedback{
+    position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,10,30,.72);backdrop-filter:blur(5px);z-index:20;
+    opacity:0;pointer-events:none;transition:.2s;padding:20px;
+  }
+  #feedback.show{opacity:1;pointer-events:auto}
+  .fbBox{
+    background:rgba(255,255,255,.1);border:3px solid rgba(255,255,255,.28);
+    border-radius:26px;padding:22px 36px;text-align:center;max-width:760px;
+    transform:scale(.9);transition:.25s cubic-bezier(.2,1.6,.5,1);
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  #feedback.show .fbBox{transform:scale(1)}
+  .fbIcon{font-size:clamp(40px,5vw,64px);line-height:1;margin-bottom:8px}
+  .fbMsg{font-size:clamp(19px,2vw,27px);font-weight:bold;margin-bottom:10px}
+  .fbExp{font-size:clamp(14px,1.4vw,19px);opacity:.85;line-height:1.4}
+  .fbBox.good{border-color:#26de81;box-shadow:0 0 50px rgba(38,222,129,.45)}
+  .fbBox.warn{border-color:#f7b731;box-shadow:0 0 50px rgba(247,183,49,.45)}
+  .fbBox.err{border-color:#ff4757;box-shadow:0 0 50px rgba(255,71,87,.45)}
+
+  /* ===== OVERLAYS ===== */
+  .overlay{
+    position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    padding:16px;background:rgba(8,10,30,.86);backdrop-filter:blur(9px);
+    overflow:auto;
+  }
+  .overlay.hidden{display:none}
+  .panel{
+    width:100%;max-width:820px;background:rgba(255,255,255,.08);
+    border:3px solid rgba(255,255,255,.18);border-radius:28px;
+    padding:26px 32px;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.55);
+    margin:auto;
+  }
+  .panel h1{font-size:clamp(24px,3.2vw,42px);margin-bottom:8px;line-height:1.15;
+    background:linear-gradient(90deg,#ffd93d,#ff6b6b,#4facfe,#26de81);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 3px 8px rgba(0,0,0,.4));}
+  .panel h2{font-size:clamp(20px,2.4vw,32px);margin-bottom:12px}
+  .panel p{font-size:clamp(14px,1.4vw,19px);opacity:.9;line-height:1.5;margin-bottom:12px}
+  .infoGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:16px 0}
+  .infoBox{background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.16);border-radius:16px;padding:12px}
+  .infoBox .num{font-size:clamp(20px,2.4vw,30px);font-weight:bold;color:#ffd93d}
+  .infoBox .lbl{font-size:clamp(11px,1.1vw,15px);opacity:.8;margin-top:2px}
+  .achList{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:14px 0}
+  .ach{
+    display:flex;align-items:center;gap:8px;padding:9px 15px;border-radius:14px;
+    background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.14);
+    font-size:clamp(12px,1.2vw,16px);font-weight:bold;opacity:.35;filter:grayscale(1);
+    transition:.3s;
+  }
+  .ach.got{opacity:1;filter:none;background:linear-gradient(135deg,rgba(255,217,61,.28),rgba(250,130,49,.28));border-color:#ffd93d;box-shadow:0 0 22px rgba(255,217,61,.3)}
+  .ach .ai{font-size:22px}
+  .btn{
+    font-family:inherit;font-weight:bold;cursor:pointer;color:#fff;border:none;
+    font-size:clamp(17px,1.9vw,25px);padding:15px 46px;border-radius:18px;
+    background:linear-gradient(135deg,#26de81,#0fb46b);
+    box-shadow:0 7px 0 rgba(0,0,0,.3),0 0 34px rgba(38,222,129,.4);
+    transition:.16s;margin-top:8px;letter-spacing:.5px;
+  }
+  .btn:hover{transform:translateY(-3px);filter:brightness(1.12)}
+  .btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.3)}
+  .btn.alt{background:linear-gradient(135deg,#4facfe,#006ba6);box-shadow:0 7px 0 rgba(0,0,0,.3),0 0 34px rgba(79,172,254,.4)}
+  .rules{text-align:left;display:inline-block;font-size:clamp(13px,1.3vw,17px);line-height:1.65;opacity:.92;margin:6px 0 4px}
+  .rules b{color:#ffd93d}
+
+  /* ===== BANNER ===== */
+  #banner{
+    position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+    background:rgba(8,10,30,.85);backdrop-filter:blur(7px);
+    opacity:0;pointer-events:none;transition:.3s;
+  }
+  #banner.show{opacity:1;pointer-events:auto}
+  #banner .bBox{text-align:center;animation:popIn .4s ease}
+  #banner .bTitle{font-size:clamp(26px,3.6vw,48px);font-weight:bold;
+    background:linear-gradient(90deg,#ffd93d,#26de81,#4facfe);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 4px 12px rgba(0,0,0,.5));}
+  #banner .bSub{font-size:clamp(15px,1.7vw,23px);opacity:.9;margin-top:10px}
+
+  @media (max-width:880px){
+    .grid2{grid-template-columns:1fr}
+    .matchWrap{gap:12px}
+    #card{padding:14px 16px 18px}
+    .hud-item{padding:4px 9px;font-size:13px}
+  }
+  @media (max-height:700px){
+    #qText{font-size:19px;margin-bottom:10px}
+    .opt{padding:10px 12px;font-size:15px}
+    .tfBtn{padding:16px 8px}
+    .catCard{padding:15px 22px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="hud">
+    <div class="hud-item" id="hudLives">❤️❤️❤️❤️❤️❤️❤️</div>
+    <div class="hud-item" id="hudTime">⏳ 25:00</div>
+    <div class="hud-item" id="hudScore">🎯 0</div>
+    <div class="hud-item" id="hudStreak">🔥 x1</div>
+    <div class="hud-item" id="hudTask">📦 Блок 1 · Задание 1/30</div>
+  </header>
+  <div id="barWrap"><div id="bar"></div></div>
+
+  <main id="stage">
+    <div id="card">
+      <div id="qType">Тип задания</div>
+      <div id="qText">Загрузка…</div>
+      <div id="qBody" class="qBody"></div>
+    </div>
+
+    <div id="feedback">
+      <div class="fbBox" id="fbBox">
+        <div class="fbIcon" id="fbIcon">✅</div>
+        <div class="fbMsg" id="fbMsg"></div>
+        <div class="fbExp" id="fbExp"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- START -->
+<div class="overlay" id="startScreen">
+  <div class="panel">
+    <h1>🤖 Принимаем решение: ЕСЛИ – ТО – ИНАЧЕ 🚦</h1>
+    <p>Урок №5 · Цифровая грамотность и ИИ · 2 класс</p>
+    <div class="rules">
+      🎯 <b>30 заданий</b> — три блока: Новичок, Знаток, Эксперт ИИ<br>
+      ❤️ <b>7 жизней</b> · ⏳ <b>25 минут</b> на всю игру<br>
+      ⭐ За верный ответ: <b>100 очков</b> + бонус за скорость<br>
+      🔥 Серия ответов даёт множитель <b>x1 → x2 → x3</b><br>
+      🧩 Механики: выбор, верно/неверно, пары, категории, порядок
+    </div>
+    <div class="infoGrid">
+      <div class="infoBox"><div class="num" id="startBest">0</div><div class="lbl">🏆 Лучший счёт</div></div>
+      <div class="infoBox"><div class="num" id="startGames">0</div><div class="lbl">🎮 Игр сыграно</div></div>
+    </div>
+    <div class="achList" id="startAch"></div>
+    <button class="btn" id="startBtn">🚀 Начать игру</button>
+  </div>
+</div>
+
+<!-- END -->
+<div class="overlay hidden" id="endScreen">
+  <div class="panel">
+    <h2 id="endTitle">🏆</h2>
+    <p id="endSub"></p>
+    <div class="infoGrid">
+      <div class="infoBox"><div class="num" id="endScore">0</div><div class="lbl">🎯 Очки</div></div>
+      <div class="infoBox"><div class="num" id="endCorrect">0</div><div class="lbl">✅ Верных</div></div>
+      <div class="infoBox"><div class="num" id="endStreak">0</div><div class="lbl">🔥 Лучшая серия</div></div>
+      <div class="infoBox"><div class="num" id="endBest">0</div><div class="lbl">🏆 Рекорд</div></div>
+    </div>
+    <div class="achList" id="endAch"></div>
+    <button class="btn" id="againBtn">🔁 Играть снова</button>
+    <button class="btn alt" id="menuBtn">🏠 В меню</button>
+  </div>
+</div>
+
+<!-- BANNER -->
+<div id="banner"><div class="bBox"><div class="bTitle"></div><div class="bSub"></div></div></div>
+
+<script>
+/* =========================================================
+   ЗВУК — Web Audio API (без внешних файлов)
+   ========================================================= */
+let AC = null;
+function ac(){
+  if(!AC){
+    try{ AC = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ AC = null; }
+  }
+  if(AC && AC.state === 'suspended'){ AC.resume(); }
+  return AC;
+}
+function beep(freq, dur, type='sine', vol=0.11, when=0){
+  const c = ac(); if(!c) return;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.value = freq;
+  const t0 = c.currentTime + when;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(t0); o.stop(t0 + dur + 0.03);
+}
+const sndClick  = ()=> beep(560,0.05,'triangle',0.05);
+const sndOk     = ()=> beep(900,0.07,'sine',0.07);
+const sndCorrect= ()=>{ beep(784,0.09,'sine',0.12,0); beep(1046,0.16,'sine',0.12,0.08); };
+const sndWrong  = ()=>{ beep(220,0.16,'square',0.09,0); beep(155,0.24,'square',0.09,0.13); };
+const sndBlock  = ()=>{ [523,659,784,1046].forEach((f,i)=>beep(f,0.16,'sine',0.12,i*0.1)); };
+const sndWin    = ()=>{ [523,659,784,1046,1318].forEach((f,i)=>beep(f,0.22,'sine',0.13,i*0.13)); };
+const sndLose   = ()=>{ [440,349,294,196].forEach((f,i)=>beep(f,0.3,'sawtooth',0.09,i*0.18)); };
+
+/* =========================================================
+   ДАННЫЕ — 30 ЗАДАНИЙ
+   ========================================================= */
+const TASKS = [
+  /* ---------- БЛОК 1: НОВИЧОК ---------- */
+  {b:1,type:'truefalse',q:'Алгоритм с ветвлением имеет выбор действий?',a:true,
+   e:'Да! Ветвление — это выбор: если условие верно — одно действие, иначе — другое.'},
+  {b:1,type:'choice',q:'Какое слово указывает на условие?',
+   o:['ЕСЛИ','ТО','ИНАЧЕ','КОНЕЦ'],a:0,
+   e:'Слово ЕСЛИ задаёт вопрос-условие. После него идёт проверка.'},
+  {b:1,type:'choice',q:'Что выполняется, если условие НЕ верно?',
+   o:['ИНАЧЕ','ТО','НАЧАЛО','РОМБ'],a:0,
+   e:'ИНАЧЕ — это ветка для случая, когда условие не выполнилось.'},
+  {b:1,type:'matching',q:'Соотнеси слово и его роль',
+   pairs:[['ЕСЛИ','Условие'],['ТО','Действие ДА'],['ИНАЧЕ','Действие НЕТ']],
+   e:'ЕСЛИ — условие, ТО — действие при «да», ИНАЧЕ — действие при «нет».'},
+  {b:1,type:'truefalse',q:'Ветвление всегда состоит из слов ЕСЛИ–ТО–ИНАЧЕ?',a:true,
+   e:'Да, это классическая форма ветвления.'},
+  {b:1,type:'category',q:'Раздели слова на две группы',
+   cats:['🔀 Слова ветвления','💬 Обычные слова'],
+   items:[{t:'ЕСЛИ',c:0},{t:'ПРИВЕТ',c:1},{t:'ТО',c:0},{t:'ИГРА',c:1},{t:'ИНАЧЕ',c:0},{t:'СТОЛ',c:1}],
+   e:'ЕСЛИ, ТО, ИНАЧЕ — волшебные слова ветвления.'},
+  {b:1,type:'choice',q:'ЕСЛИ идёт дождь, ТО что мы берём?',
+   o:['☂️ Зонт','⚽ Мяч','📕 Книгу','🍬 Конфету'],a:0,
+   e:'Идёт дождь → берём зонт! Это ветвление.'},
+  {b:1,type:'truefalse',q:'Если условие выполняется, мы переходим к слову ИНАЧЕ?',a:false,
+   e:'Нет! Если условие верно — выполняем ветку ТО, а ИНАЧЕ пропускаем.'},
+  {b:1,type:'order',q:'Собери порядок слов ветвления',
+   items:['ЕСЛИ','ТО','ИНАЧЕ'],
+   e:'Порядок такой: ЕСЛИ → ТО → ИНАЧЕ.'},
+  {b:1,type:'choice',q:'На что похож ветвящийся алгоритм?',
+   o:['🛤️ На развилку дорог','➖ На прямую линию','⭕ На круг'],a:0,
+   e:'Ветвление — это развилка: дорога делится на две.'},
+
+  /* ---------- БЛОК 2: ЗНАТОК ---------- */
+  {b:2,type:'choice',q:'Какая фигура обозначает УСЛОВИЕ (вопрос) в блок-схеме?',
+   o:['🔷 Ромб','🟩 Прямоугольник','⬭ Овал'],a:0,
+   e:'Условие рисуют в ромбе — из него выходят две стрелки.'},
+  {b:2,type:'choice',q:'Какая фигура обозначает ДЕЙСТВИЕ в блок-схеме?',
+   o:['🟩 Прямоугольник','🔷 Ромб','⬭ Овал'],a:0,
+   e:'Действие (команду) записывают в прямоугольнике.'},
+  {b:2,type:'matching',q:'Соотнеси фигуру и её значение',
+   pairs:[['🔷 Ромб','Условие'],['🟩 Прямоугольник','Действие'],['⬭ Овал','Начало / Конец']],
+   e:'Ромб — условие, прямоугольник — действие, овал — начало и конец.'},
+  {b:2,type:'truefalse',q:'Из ромба условия выходят две стрелки: «Да» и «Нет»?',a:true,
+   e:'Да! Одна стрелка — «Да», вторая — «Нет».'},
+  {b:2,type:'category',q:'Распредели по категориям',
+   cats:['❓ Задаёт вопрос','⚙️ Выполняет команду'],
+   items:[{t:'🔷 Ромб',c:0},{t:'🟩 Прямоугольник',c:1},{t:'«Идёт дождь?»',c:0},
+          {t:'«Взять зонт»',c:1},{t:'«Свет зелёный?»',c:0},{t:'«Идти вперёд»',c:1}],
+   e:'Вопрос — это ромб, команда — прямоугольник.'},
+  {b:2,type:'choice',q:'Сколько стрелок выходит из фигуры «Ромб»?',
+   o:['2 стрелки','1 стрелка','4 стрелки'],a:0,
+   e:'Ровно две: «Да» и «Нет».'},
+  {b:2,type:'order',q:'Собери цепочку блок-схемы',
+   items:['⬭ Начало','🔷 Ромб условия','🟩 Прямоугольник действия','⬭ Конец'],
+   e:'Начало → условие → действие → конец.'},
+  {b:2,type:'truefalse',q:'В ромбе пишется вопрос, на который можно ответить только ДА или НЕТ?',a:true,
+   e:'Да! Условие всегда даёт ответ «да» или «нет».'},
+  {b:2,type:'choice',q:'«ЕСЛИ горит зелёный свет…» — куда ведёт стрелка «ДА»?',
+   o:['🚶 Переходить дорогу','🧍 Ждать на тротуаре'],a:0,
+   e:'Зелёный свет → можно переходить дорогу.'},
+  {b:2,type:'matching',q:'Соотнеси сигналы светофора и действия',
+   pairs:[['🟢 Зелёный','Идти'],['🔴 Красный','Стоять']],
+   e:'Зелёный — идти, красный — стоять. Настоящее ветвление!'},
+
+  /* ---------- БЛОК 3: ЭКСПЕРТ ИИ ---------- */
+  {b:3,type:'choice',q:'Нажал кнопку звонка. Стрелка «НЕТ» (звонок сломан) ведёт к действию:',
+   o:['✊ Постучать в дверь','🚪 Войти без стука','😴 Уйти домой'],a:0,
+   e:'Если звонок не работает — стучим в дверь.'},
+  {b:3,type:'order',q:'Собери алгоритм «Одеваемся по погоде»',
+   items:['ЕСЛИ на улице холодно','ТО надеваем куртку','ИНАЧЕ надеваем футболку'],
+   e:'Сначала проверяем погоду, потом выбираем одежду.'},
+  {b:3,type:'category',q:'Распредели ситуации',
+   cats:['🔀 Есть ветвление','➡️ Линейный алгоритм'],
+   items:[{t:'Выбор одежды по погоде',c:0},{t:'Почистить зубы',c:1},
+          {t:'Оценка за тест',c:0},{t:'Включить свет',c:1}],
+   e:'Где есть выбор «если… то… иначе» — там ветвление.'},
+  {b:3,type:'matching',q:'Подбери результат к условию',
+   pairs:[['Тест сдан на 10','Получи 5 ⭐'],['Тест не сдан','Повтори тему 📚']],
+   e:'Условие определяет, какой результат мы получим.'},
+  {b:3,type:'truefalse',q:'Выполняются ли одновременно ветка «ТО» и ветка «ИНАЧЕ»?',a:false,
+   e:'Нет! Всегда выполняется только ОДНА из двух веток.'},
+  {b:3,type:'choice',q:'Робот дошёл до стены. ЕСЛИ впереди стена, ТО…',
+   o:['🔄 Повернуться','🧱 Идти сквозь стену','🔌 Выключиться'],a:0,
+   e:'Встретил препятствие — повернись и продолжай путь.'},
+  {b:3,type:'order',q:'Собери алгоритм «Сложил игрушки»',
+   items:['ЕСЛИ игрушки на полу','ТО собери их в ящик','ИНАЧЕ иди гулять'],
+   e:'Сначала проверяем условие, потом действуем.'},
+  {b:3,type:'choice',q:'Стрелка «ДА» ведёт к «Попей воды», стрелка «НЕТ» — к «Продолжай играть». Что произойдёт, если ребёнок НЕ хочет пить?',
+   o:['🎮 Продолжит играть','💧 Попьёт воды','😴 Уснёт'],a:0,
+   e:'Условие не выполнено → идём по ветке «НЕТ» → продолжаем играть.'},
+  {b:3,type:'truefalse',q:'Графическая форма алгоритма — это запись словами в тетрадь?',a:false,
+   e:'Нет! Графическая форма — это блок-схема с фигурами и стрелками.'},
+  {b:3,type:'order',q:'Финальная сборка блок-схемы «Урок окончен»',
+   items:['⬭ Начало','🔷 Ромб: Прошёл все 30 заданий?','✅ Ветка ДА: Получи 10 баллов!','⬭ Конец'],
+   e:'Отлично! Ты собрал полную блок-схему ветвления!'}
+];
+
+const TYPE_LABEL = {
+  choice:'🔘 Выбери ответ',
+  truefalse:'👍 Верно или 👎 Неверно',
+  matching:'🔗 Найди пары',
+  category:'📂 Распредели по категориям',
+  order:'🔢 Расставь по порядку'
+};
+
+const ACHIEVEMENTS = {
+  first_step:   {name:'Первый шаг',        icon:'👣'},
+  algo_master:  {name:'Мастер алгоритмов', icon:'🧠'},
+  branch_genius:{name:'Гений ветвления',   icon:'🏆'},
+  perfect_run:  {name:'Без единой ошибки', icon:'💎'}
+};
+
+/* =========================================================
+   СОСТОЯНИЕ
+   ========================================================= */
+const KEY = 'algo_branch_game_v1';
+const TOTAL_TIME = 25 * 60;
+const MAX_LIVES = 7;
+
+const state = {
+  lives: MAX_LIVES,
+  score: 0,
+  streak: 0,
+  bestStreak: 0,
+  idx: 0,
+  timeLeft: TOTAL_TIME,
+  timerId: null,
+  qStart: 0,
+  locked: false,
+  mistakes: 0,
+  correctCount: 0,
+  newAch: [],
+  running: false
+};
+
+const $ = s => document.querySelector(s);
+function shuffle(a){const b=a.slice();for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* =========================================================
+   LOCALSTORAGE
+   ========================================================= */
+function loadData(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if(d && typeof d === 'object') return d;
+  }catch(e){}
+  return {bestScore:0, games:0, ach:[]};
+}
+function saveData(d){
+  try{ localStorage.setItem(KEY, JSON.stringify(d)); }catch(e){}
+}
+function saveResult(){
+  const d = loadData();
+  d.bestScore = Math.max(d.bestScore || 0, state.score);
+  d.games = (d.games || 0) + 1;
+  const set = new Set(d.ach || []);
+  state.newAch.forEach(a => set.add(a));
+  d.ach = Array.from(set);
+  saveData(d);
+}
+function unlock(id){
+  if(!state.newAch.includes(id)){
+    state.newAch.push(id);
+  }
+}
+
+/* =========================================================
+   HUD
+   ========================================================= */
+function updateHUD(){
+  const hearts = '❤️'.repeat(Math.max(0,state.lives)) + '🖤'.repeat(Math.max(0,MAX_LIVES - state.lives));
+  $('#hudLives').textContent = hearts;
+
+  const m = Math.floor(state.timeLeft / 60);
+  const s = state.timeLeft % 60;
+  const tEl = $('#hudTime');
+  tEl.textContent = '⏳ ' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  tEl.classList.toggle('warn', state.timeLeft <= 120 && state.timeLeft > 45);
+  tEl.classList.toggle('danger', state.timeLeft <= 45);
+
+  $('#hudScore').textContent = '🎯 ' + state.score;
+
+  const mult = state.streak >= 5 ? 3 : (state.streak >= 3 ? 2 : 1);
+  $('#hudStreak').textContent = '🔥 x' + mult + (state.streak > 0 ? ' (' + state.streak + ')' : '');
+
+  const block = Math.floor(state.idx / 10) + 1;
+  $('#hudTask').textContent = '📦 Блок ' + block + ' · Задание ' + (state.idx + 1) + '/30';
+
+  const pct = (state.timeLeft / TOTAL_TIME) * 100;
+  const bar = $('#bar');
+  bar.style.width = pct + '%';
+  bar.style.background = pct > 50
+    ? 'linear-gradient(90deg,#26de81,#4facfe)'
+    : pct > 20
+      ? 'linear-gradient(90deg,#f7b731,#fa8231)'
+      : 'linear-gradient(90deg,#ff4757,#c0392b)';
+}
+
+function pop(el){
+  el.classList.add('pop');
+  setTimeout(()=>el.classList.remove('pop'), 260);
+}
+
+/* =========================================================
+   ИГРА
+   ========================================================= */
+function startGame(){
+  state.lives = MAX_LIVES;
+  state.score = 0;
+  state.streak = 0;
+  state.bestStreak = 0;
+  state.idx = 0;
+  state.timeLeft = TOTAL_TIME;
+  state.qStart = Date.now();
+  state.locked = false;
+  state.mistakes = 0;
+  state.correctCount = 0;
+  state.newAch = [];
+  state.running = true;
+
+  $('#startScreen').classList.add('hidden');
+  $('#endScreen').classList.add('hidden');
+  $('#banner').classList.remove('show');
+  hideFeedback();
+
+  clearInterval(state.timerId);
+  state.timerId = setInterval(tick, 1000);
+
+  updateHUD();
+  renderTask();
+}
+
+function tick(){
+  if(!state.running) return;
+  state.timeLeft--;
+  if(state.timeLeft <= 0){
+    state.timeLeft = 0;
+    updateHUD();
+    endGame(false, 'time');
+    return;
+  }
+  updateHUD();
+  if(state.timeLeft === 10) beep(880,0.08,'sine',0.07);
+  if(state.timeLeft <= 5 && state.timeLeft > 0) beep(660,0.07,'square',0.06);
+}
+
+function renderTask(){
+  const t = TASKS[state.idx];
+  state.qStart = Date.now();
+  state.mistakes = 0;
+  state.locked = false;
+
+  $('#qType').textContent = TYPE_LABEL[t.type];
+  $('#qText').innerHTML = esc(t.q);
+
+  const zone = $('#qBody');
+  zone.className = 'qBody';
+  zone.innerHTML = '';
+  zone.style.animation = 'none';
+  void zone.offsetWidth;
+  zone.style.animation = 'cardIn .3s ease';
+
+  if(t.type === 'choice')     buildChoice(t, zone);
+  else if(t.type === 'truefalse') buildTF(t, zone);
+  else if(t.type === 'matching')  buildMatching(t, zone);
+  else if(t.type === 'category')  buildCategory(t, zone);
+  else if(t.type === 'order')     buildOrder(t, zone);
+
+  updateHUD();
+}
+
+/* -------- CHOICE -------- */
+function buildChoice(t, zone){
+  zone.classList.add('grid2');
+  t.o.forEach((opt, i)=>{
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.innerHTML = '<span class="badge">' + 'ABCD'[i] + '</span><span>' + esc(opt) + '</span>';
+    b.onclick = ()=>{
+      if(state.locked) return;
+      state.locked = true;
+      Array.from(zone.children).forEach(c => c.classList.add('disabled'));
+      if(i === t.a){
+        b.classList.add('ok');
+        resolve('correct');
+      }else{
+        b.classList.add('bad');
+        zone.children[t.a].classList.add('ok');
+        resolve('wrong');
+      }
+    };
+    zone.appendChild(b);
+  });
+}
+
+/* -------- TRUE / FALSE -------- */
+function buildTF(t, zone){
+  zone.classList.add('tfWrap');
+  const mk = (id, ico, label, val)=>{
+    const b = document.createElement('button');
+    b.className = 'tfBtn'; b.id = id;
+    b.innerHTML = '<span class="ico">' + ico + '</span><span>' + label + '</span>';
+    b.onclick = ()=>{
+      if(state.locked) return;
+      state.locked = true;
+      const other = zone.querySelector('#' + (id === 'tfYes' ? 'tfNo' : 'tfYes'));
+      other.classList.add('disabled');
+      if(val === t.a){
+        b.classList.add('ok');
+        resolve('correct');
+      }else{
+        b.classList.add('bad');
+        other.classList.add('ok');
+        resolve('wrong');
+      }
+    };
+    return b;
+  };
+  zone.appendChild(mk('tfYes','👍','Верно', true));
+  zone.appendChild(mk('tfNo','👎','Неверно', false));
+}
+
+/* -------- MATCHING -------- */
+function buildMatching(t, zone){
+  const wrap = document.createElement('div');
+  wrap.className = 'matchWrap';
+  const colL = document.createElement('div'); colL.className = 'matchCol';
+  const colR = document.createElement('div'); colR.className = 'matchCol';
+
+  const titleL = document.createElement('div'); titleL.className = 'colTitle'; titleL.textContent = '🔤 Левая часть';
+  const titleR = document.createElement('div'); titleR.className = 'colTitle'; titleR.textContent = '🔡 Правая часть';
+  colL.appendChild(titleL); colR.appendChild(titleR);
+
+  const leftItems  = t.pairs.map((p,i)=>({txt:p[0], i}));
+  const rightItems = shuffle(t.pairs.map((p,i)=>({txt:p[1], i})));
+
+  let sel = null, done = 0;
+
+  leftItems.forEach(item=>{
+    const el = document.createElement('button');
+    el.className = 'mItem'; el.textContent = item.txt;
+    el.onclick = ()=>{
+      if(state.locked || el.classList.contains('done')) return;
+      if(sel) sel.el.classList.remove('sel');
+      sel = {el, item};
+      el.classList.add('sel');
+      sndClick();
+    };
+    colL.appendChild(el);
+  });
+
+  rightItems.forEach(item=>{
+    const el = document.createElement('button');
+    el.className = 'mItem'; el.textContent = item.txt;
+    el.onclick = ()=>{
+      if(state.locked || el.classList.contains('done') || !sel) return;
+      if(sel.item.i === item.i){
+        const s = sel; sel = null;
+        s.el.classList.remove('sel');
+        s.el.classList.add('done');
+        el.classList.add('done');
+        done++;
+        sndOk();
+        if(done === t.pairs.length){
+          resolve(state.mistakes === 0 ? 'correct' : 'partial');
+        }
+      }else{
+        const s = sel; sel = null;
+        state.mistakes++;
+        sndWrong();
+        el.classList.add('bad');
+        s.el.classList.remove('sel');
+        s.el.classList.add('bad');
+        setTimeout(()=>{ el.classList.remove('bad'); s.el.classList.remove('bad'); }, 520);
+      }
+    };
+    colR.appendChild(el);
+  });
+
+  wrap.appendChild(colL); wrap.appendChild(colR);
+  zone.appendChild(wrap);
+}
+
+/* -------- CATEGORY -------- */
+function buildCategory(t, zone){
+  const wrap = document.createElement('div');
+  wrap.className = 'catWrap';
+
+  const items = shuffle(t.items.slice());
+  let cur = 0;
+
+  const prog = document.createElement('div');
+  prog.className = 'catProg';
+
+  const cardEl = document.createElement('div');
+  cardEl.className = 'catCard';
+
+  const btnWrap = document.createElement('div');
+  btnWrap.className = 'catBtns';
+
+  t.cats.forEach((c, i)=>{
+    const b = document.createElement('button');
+    b.className = 'catBtn';
+    b.textContent = c;
+    b.onclick = ()=> choose(i);
+    btnWrap.appendChild(b);
+  });
+
+  function show(){
+    if(cur >= items.length){
+      resolve(state.mistakes === 0 ? 'correct' : 'partial');
+      return;
+    }
+    cardEl.textContent = items[cur].t;
+    cardEl.classList.remove('pop');
+    void cardEl.offsetWidth;
+    cardEl.classList.add('pop');
+    prog.textContent = 'Карточка ' + (cur + 1) + ' из ' + items.length;
+  }
+
+  function choose(i){
+    if(state.locked) return;
+    if(items[cur].c === i){
+      cur++;
+      sndOk();
+      show();
+    }else{
+      state.mistakes++;
+      sndWrong();
+      cardEl.classList.add('bad');
+      setTimeout(()=>cardEl.classList.remove('bad'), 430);
+    }
+  }
+
+  wrap.appendChild(prog);
+  wrap.appendChild(cardEl);
+  wrap.appendChild(btnWrap);
+  zone.appendChild(wrap);
+  show();
+}
+
+/* -------- ORDER -------- */
+function buildOrder(t, zone){
+  const correct = t.items;
+  const pool = shuffle(correct.map((txt,i)=>({txt,i})));
+  let next = 0;
+
+  const seq = document.createElement('div');
+  seq.className = 'seqArea';
+
+  const poolEl = document.createElement('div');
+  poolEl.className = 'poolArea';
+
+  pool.forEach(item=>{
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = item.txt;
+    b.onclick = ()=>{
+      if(state.locked || b.classList.contains('done')) return;
+      if(item.i === next){
+        b.classList.add('done');
+        const c = document.createElement('div');
+        c.className = 'chip placed';
+        c.textContent = (next + 1) + '. ' + item.txt;
+        seq.appendChild(c);
+        next++;
+        sndOk();
+        if(next === correct.length){
+          resolve(state.mistakes === 0 ? 'correct' : 'partial');
+        }
+      }else{
+        state.mistakes++;
+        sndWrong();
+        b.classList.add('bad');
+        setTimeout(()=>b.classList.remove('bad'), 430);
+      }
+    };
+    poolEl.appendChild(b);
+  });
+
+  zone.appendChild(seq);
+  zone.appendChild(poolEl);
+}
+
+/* =========================================================
+   РЕЗУЛЬТАТ ЗАДАНИЯ
+   ========================================================= */
+function resolve(outcome){
+  if(!state.running) return;
+  state.locked = true;
+
+  const t = TASKS[state.idx];
+  const elapsed = (Date.now() - state.qStart) / 1000;
+  let msg = '', exp = t.e || '';
+
+  if(outcome === 'correct'){
+    state.streak++;
+    state.bestStreak = Math.max(state.bestStreak, state.streak);
+    const mult = state.streak >= 5 ? 3 : (state.streak >= 3 ? 2 : 1);
+    const speed = Math.max(0, Math.round(50 * (1 - Math.min(elapsed, 25) / 25)));
+    const pts = (100 + speed) * mult;
+    state.score += pts;
+    state.correctCount++;
+
+    msg = '✅ Верно! +' + pts + ' очков' + (mult > 1 ? ' 🔥 x' + mult : '') + (speed > 25 ? ' ⚡' : '');
+    sndCorrect();
+    pop($('#hudScore'));
+    showFeedback('good', '🎉', msg, exp);
+
+    if(state.correctCount === 1) unlock('first_step');
+    updateHUD();
+    setTimeout(nextTask, 1750);
+
+  }else if(outcome === 'partial'){
+    state.streak = 0;
+    state.lives--;
+    state.score += 50;
+    msg = '🤏 Почти получилось! Были ошибки: +50 очков и −1 ❤️';
+    sndWrong();
+    showFeedback('warn', '😅', msg, exp);
+    updateHUD();
+    setTimeout(()=>{
+      if(state.lives <= 0){ endGame(false, 'lives'); } else { setTimeout(nextTask, 0); }
+    }, 1900);
+
+  }else{
+    state.streak = 0;
+    state.lives--;
+    msg = '❌ Неверно! −1 ❤️';
+    sndWrong();
+    showFeedback('err', '💔', msg, exp);
+    updateHUD();
+    setTimeout(()=>{
+      if(state.lives <= 0){ endGame(false, 'lives'); } else { setTimeout(nextTask, 0); }
+    }, 2100);
+  }
+}
+
+function nextTask(){
+  hideFeedback();
+  if(!state.running) return;
+
+  state.idx++;
+
+  if(state.idx >= TASKS.length){
+    endGame(true, 'win');
+    return;
+  }
+
+  if(state.idx % 10 === 0){
+    const done = state.idx / 10;
+    if(state.idx === 20) unlock('algo_master');
+    let sub = '';
+    if(done === 1) sub = 'Ты освоил слова ветвления! 🚀';
+    else if(done === 2) sub = 'Теперь ты знаток блок-схем! 🧠';
+    showBanner('🏅 Блок ' + done + ' пройден!', sub, ()=> renderTask());
+  }else{
+    renderTask();
+  }
+}
+
+/* =========================================================
+   ОБРАТНАЯ СВЯЗЬ
+   ========================================================= */
+function showFeedback(kind, icon, msg, exp){
+  const box = $('#fbBox');
+  box.className = 'fbBox ' + kind;
+  $('#fbIcon').textContent = icon;
+  $('#fbMsg').textContent = msg;
+  $('#fbExp').textContent = exp || '';
+  $('#feedback').classList.add('show');
+}
+function hideFeedback(){
+  $('#feedback').classList.remove('show');
+}
+$('#feedback').addEventListener('click', ()=>{
+  if(state.running && state.locked) hideFeedback();
+});
+
+/* =========================================================
+   БАННЕР БЛОКА
+   ========================================================= */
+function showBanner(title, sub, cb){
+  const b = $('#banner');
+  b.querySelector('.bTitle').textContent = title;
+  b.querySelector('.bSub').textContent = sub || '';
+  b.classList.add('show');
+  sndBlock();
+  setTimeout(()=>{
+    b.classList.remove('show');
+    if(cb) cb();
+  }, 1900);
+}
+
+/* =========================================================
+   КОНЕЦ ИГРЫ
+   ========================================================= */
+function endGame(win, reason){
+  if(!state.running) return;
+  state.running = false;
+  clearInterval(state.timerId);
+  hideFeedback();
+
+  if(win){
+    unlock('branch_genius');
+    if(state.lives === MAX_LIVES) unlock('perfect_run');
+    sndWin();
+  }else{
+    sndLose();
+  }
+
+  saveResult();
+  const d = loadData();
+
+  const title = $('#endTitle');
+  const sub = $('#endSub');
+  if(win){
+    title.textContent = '🏆 Победа! Ты гений ветвления!';
+    sub.textContent = 'Ты прошёл все 30 заданий и собрал полные блок-схемы.';
+  }else if(reason === 'time'){
+    title.textContent = '⏰ Время вышло!';
+    sub.textContent = 'Ты дошёл до задания ' + (state.idx + 1) + ' из 30. Попробуй ещё раз — стань быстрее!';
+  }else{
+    title.textContent = '💔 Жизни закончились!';
+    sub.textContent = 'Ты дошёл до задания ' + (state.idx + 1) + ' из 30. Повтори правило ЕСЛИ–ТО–ИНАЧЕ и попробуй снова!';
+  }
+
+  $('#endScore').textContent = state.score;
+  $('#endCorrect').textContent = state.correctCount;
+  $('#endStreak').textContent = state.bestStreak;
+  $('#endBest').textContent = d.bestScore || 0;
+
+  const achBox = $('#endAch');
+  achBox.innerHTML = '';
+  Object.keys(ACHIEVEMENTS).forEach(k=>{
+    const a = ACHIEVEMENTS[k];
+    const got = state.newAch.includes(k);
+    const el = document.createElement('div');
+    el.className = 'ach' + (got ? ' got' : '');
+    el.innerHTML = '<span class="ai">' + a.icon + '</span><span>' + a.name + '</span>';
+    achBox.appendChild(el);
+  });
+
+  $('#endScreen').classList.remove('hidden');
+}
+
+/* =========================================================
+   МЕНЮ
+   ========================================================= */
+function renderMenu(){
+  const d = loadData();
+  $('#startBest').textContent = d.bestScore || 0;
+  $('#startGames').textContent = d.games || 0;
+
+  const achBox = $('#startAch');
+  achBox.innerHTML = '';
+  Object.keys(ACHIEVEMENTS).forEach(k=>{
+    const a = ACHIEVEMENTS[k];
+    const got = (d.ach || []).includes(k);
+    const el = document.createElement('div');
+    el.className = 'ach' + (got ? ' got' : '');
+    el.innerHTML = '<span class="ai">' + a.icon + '</span><span>' + a.name + '</span>';
+    achBox.appendChild(el);
+  });
+}
+
+/* =========================================================
+   КНОПКИ
+   ========================================================= */
+$('#startBtn').addEventListener('click', ()=>{
+  ac();
+  sndClick();
+  startGame();
+});
+$('#againBtn').addEventListener('click', ()=>{
+  sndClick();
+  startGame();
+});
+$('#menuBtn').addEventListener('click', ()=>{
+  sndClick();
+  $('#endScreen').classList.add('hidden');
+  renderMenu();
+  $('#startScreen').classList.remove('hidden');
+});
+
+/* =========================================================
+   СТАРТ
+   ========================================================= */
+renderMenu();
+updateHUD();
+
+window.addEventListener('keydown', e=>{
+  if(e.key === 'Escape') hideFeedback();
+});
+</script>
+</body>
+</html>
